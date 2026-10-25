@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "Happy",
+    "slug": "happy",
+    "scheme": "happy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FCFAFB",
+    "primaryColor": "#E0456B",
+    "ios": {
+      "bundleIdentifier": "com.progistack.happy",
+      "supportsTablet": true,
+      "associatedDomains": ["applinks:happy.example.com"],
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Happy utilise vos photos pour illustrer un cadeau, un article ou votre boutique.",
+        "NSCameraUsageDescription": "Happy utilise l'appareil photo pour photographier un cadeau ou un article."
+      }
+    },
+    "android": {
+      "package": "com.progistack.happy",
+      "adaptiveIcon": {
+        "backgroundColor": "#E0456B",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "happy.example.com", "pathPrefix": "/e/" },
+            { "scheme": "https", "host": "happy.example.com", "pathPrefix": "/boutiques" },
+            { "scheme": "https", "host": "happy.example.com", "pathPrefix": "/suivi" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        { "image": "./assets/splash-icon.png", "imageWidth": 160, "backgroundColor": "#1E1428" }
+      ],
+      "expo-image",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        { "photosPermission": "Happy utilise vos photos pour illustrer un cadeau, un article ou votre boutique." }
+      ],
+      [
+        "expo-notifications",
+        { "color": "#E0456B" }
+      ]
+    ],
+    "experiments": { "typedRoutes": false },
+    "extra": {
+      "eas": { "projectId": "" }
+    }
+  }
+}

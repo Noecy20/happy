@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent: #D6336C;
+  --accent-ink: #ffffff;
+}
+
+html { scroll-behavior: smooth; }
+body { @apply bg-paper text-ink font-sans antialiased; }
+
+/* Titres : Bricolage Grotesque, gras et serré */
+h1, h2, h3, .font-display {
+  font-family: 'Bricolage Grotesque', Manrope, system-ui, sans-serif;
+  font-weight: 700; letter-spacing: -0.025em; font-optical-sizing: auto;
+}
+h1 { font-weight: 800; letter-spacing: -0.035em; }
+.font-book { font-family: 'Cormorant Garamond', Georgia, serif; letter-spacing: 0; }
+
+:focus-visible { outline: 2px solid #D6336C; outline-offset: 3px; border-radius: 8px; }
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-transparent px-5 py-2.5 text-[15px] font-bold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary { @apply btn bg-ink text-white hover:bg-plum; }
+  .btn-candy { @apply btn bg-candy text-white hover:bg-[#bd2a5d]; }
+  .btn-ghost { @apply btn border-ink/15 bg-white text-ink hover:border-ink/35; }
+  .input {
+    @apply w-full rounded-xl border border-ink/15 bg-white px-4 py-3 text-[15px] outline-none transition placeholder:text-ink/35 focus:border-plum focus:ring-4 focus:ring-plum/10;
+  }
+  .label { @apply mb-1.5 block text-sm font-bold text-ink/80; }
+  .panel { @apply rounded-[20px] border border-ink/10 bg-white; }
+}
+
+/* Papier cadeau : un pagne wax sur la couleur de la fête */
+.wrap-paper {
+  background-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'80'%20height%3D'80'%20viewBox%3D'0%200%2080%2080'%3E%3Cg%20fill%3D'none'%20stroke-width%3D'3'%3E%3Ccircle%20cx%3D'20'%20cy%3D'20'%20r%3D'14'%20stroke%3D'%23FFFBF5'%20stroke-opacity%3D'.9'%2F%3E%3Ccircle%20cx%3D'20'%20cy%3D'20'%20r%3D'7.5'%20stroke%3D'%23F2A93B'%2F%3E%3Ccircle%20cx%3D'60'%20cy%3D'60'%20r%3D'14'%20stroke%3D'%23FFFBF5'%20stroke-opacity%3D'.9'%2F%3E%3Ccircle%20cx%3D'60'%20cy%3D'60'%20r%3D'7.5'%20stroke%3D'%23F2A93B'%2F%3E%3C%2Fg%3E%3Ccircle%20cx%3D'20'%20cy%3D'20'%20r%3D'2.5'%20fill%3D'%23FFFBF5'%2F%3E%3Ccircle%20cx%3D'60'%20cy%3D'60'%20r%3D'2.5'%20fill%3D'%23FFFBF5'%2F%3E%3Cpath%20d%3D'M60%207%20L67%2020%20L60%2033%20L53%2020Z%20M20%2047%20L27%2060%20L20%2073%20L13%2060Z'%20fill%3D'%2314112B'%20fill-opacity%3D'.3'%2F%3E%3C%2Fsvg%3E");
+  background-size: 64px 64px;
+}
+.ribbon-v, .ribbon-h { position: absolute; background: linear-gradient(90deg, #C9821C, #FFD27A 50%, #C9821C); }
+.ribbon-v { top: 0; bottom: 0; left: calc(50% - 9px); width: 18px; }
+.ribbon-h { left: 0; right: 0; top: calc(50% - 9px); height: 18px; background: linear-gradient(180deg, #C9821C, #FFD27A 50%, #C9821C); }
+
+/* Livre d'or : impression / PDF, une page A5 par carte */
+.livre-print { display: none; }
+@page livre { size: 148mm 210mm; margin: 0; }
+@media print {
+  body.printing-livre > *:not(.livre-print) { display: none !important; }
+  body.printing-livre .livre-print { display: block; }
+  .livre-print { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .livre-print .livre-sheet { page: livre; width: 148mm; height: 210mm; overflow: hidden; break-after: page; }
+  .livre-print .livre-sheet:last-child { break-after: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Bougies */
+@keyframes flicker {
+  0% { transform: scale(1, 1) rotate(-2deg); opacity: .95; }
+  50% { transform: scale(.92, 1.08) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1.05, .94) rotate(-1deg); opacity: .9; }
+}
+.flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flicker .9s ease-in-out infinite alternate; }

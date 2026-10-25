@@ -1,0 +1,8 @@
+# Hébergement Netlify : Netlify détecte Next.js et installe automatiquement son adaptateur.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# La tâche quotidienne (rappels d'anniversaire, livraisons…) est dans netlify/functions/quotidien.mjs
+[functions]
+  directory = "netlify/functions"

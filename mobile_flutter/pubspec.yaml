@@ -1,0 +1,28 @@
+# Application mobile Happy (Flutter) — version PostgreSQL locale.
+name: happy
+description: Listes de cadeaux d'anniversaire avec effet surprise (Abidjan).
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:     # calendrier et textes système en français
+    sdk: flutter
+  http: ^1.2.2               # appels à l'API Happy (serveur Node)
+  shared_preferences: ^2.3.2 # jeton de connexion + mémoire locale (codes, réponses)
+  image_picker: ^1.1.2       # photos des cadeaux et captures de paiement
+  intl: any                  # dates en français, montants FCFA (version imposée par Flutter)
+  url_launcher: ^6.3.0       # WhatsApp, appels, Google Maps
+  share_plus: ^10.1.4        # partage natif du lien
+  google_fonts: ^6.2.1       # Cormorant Garamond (titres) et Manrope (texte)
+
+dev_dependencies:
+  flutter_test:              # nécessaire pour test/widget_test.dart
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

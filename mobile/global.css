@@ -1,0 +1,4 @@
+/* Point d'entrée Tailwind pour NativeWind (importé une seule fois dans src/app/_layout.tsx) */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
