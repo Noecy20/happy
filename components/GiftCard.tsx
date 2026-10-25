@@ -1,7 +1,7 @@
 'use client';
 import { Pencil, Trash2 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { GiftPlaceholder } from './Illustrations';
+import GiftVisual from './GiftVisual';
 import type { GiftItem } from './WrappedCard';
 
 /** Carte compacte d'un cadeau (espace célébrant) : emballée dans le pagne quand elle est prise. */
@@ -16,8 +16,7 @@ export default function GiftCard({ g, editable, onEdit, onDelete }: { g: GiftIte
   return (
     <li className="overflow-hidden rounded-2xl border border-ink/10 bg-white">
       <div className="relative aspect-[4/3] overflow-hidden bg-lilac">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {g.image_url ? <img src={g.image_url} alt="" className="h-full w-full object-cover" /> : <GiftPlaceholder />}
+        <GiftVisual name={g.name} image_url={g.image_url} items={g.items} labels={false} />
         {wrapped && <div className="wrap-paper absolute inset-0"><span className="ribbon-v" /><span className="ribbon-h" /></div>}
         {half && <div className="wrap-paper absolute inset-x-0 top-0 h-1/2"><span className="ribbon-v" /><span className="ribbon-h !top-auto bottom-0" /></div>}
         {editable && (

@@ -5,9 +5,9 @@ Listes de cadeaux d'anniversaire avec effet surprise, invitations et boutiques p
 ## Installation (base neuve)
 
 1. Supabase > **SQL Editor** :
-   - base neuve : `supabase/0-reinitialiser.sql` (vide tout), puis `1-schema.sql`, `2-mise-a-jour-v5.sql`, `3-cadeau-commun-telephone.sql`, puis `4-livre-dor.sql` ;
-   - base existante (v4) : `2-mise-a-jour-v5.sql`, `3-cadeau-commun-telephone.sql`, puis `4-livre-dor.sql` (aucune perte de données) ;
-   - base déjà en v5 : `3-cadeau-commun-telephone.sql` (cadeau commun, numéro unique) puis `4-livre-dor.sql` (livre d’or).
+   - base neuve : `supabase/0-reinitialiser.sql` (vide tout), puis `1-schema.sql`, `2-mise-a-jour-v5.sql`, `3-cadeau-commun-telephone.sql`, `4-livre-dor.sql`, `5-photo-celebrant.sql`, puis `6-cadeaux-pack.sql` ;
+   - base existante (v4) : `2-mise-a-jour-v5.sql`, `3-cadeau-commun-telephone.sql` à `6-cadeaux-pack.sql` dans l’ordre (aucune perte de données) ;
+   - base déjà en v5 : `3-cadeau-commun-telephone.sql` à `6-cadeaux-pack.sql`, dans l’ordre.
 2. Supabase > **Authentication > Sign In / Providers > Email** : désactivez **Confirm email** (indispensable pour l'inscription par téléphone).
 3. `.env.local` : URL du projet (sans `/rest/v1`), clé `anon`, clé `service_role`.
 4. `npm install` puis `npm run dev`.

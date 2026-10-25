@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Store, ExternalLink, Lock, Heart, Ribbon } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-import { GiftPlaceholder } from './Illustrations';
+import GiftVisual, { PackItem } from './GiftVisual';
 
 export type GiftItem = {
   id: string; name: string; description?: string; image_url?: string; price?: number;
@@ -12,6 +12,7 @@ export type GiftItem = {
   wrap_available?: boolean; wrap_price?: number | null; stock?: number | null; options?: Record<string, string>; vendor_name?: string; vendor_id?: string; product_id?: string;
   friend_name?: string; friend_message?: string;
   multiple?: boolean; participants?: number; // cadeau commun : plusieurs personnes peuvent participer
+  items?: PackItem[]; // pack : 2 ou 3 articles réservés ensemble
 };
 
 const TONES = ['rose', 'plum', 'cream'] as const;
@@ -30,12 +31,7 @@ export default function WrappedCard({ gift, onClaim, mine = false, footer, close
   return (
     <motion.article layout className="group relative flex flex-col overflow-hidden rounded-[24px] border border-ink/[0.07] bg-white shadow-popsm transition-shadow hover:shadow-pop">
       <div className="relative aspect-[4/3] overflow-hidden bg-lilac">
-        {gift.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={gift.image_url} alt={gift.name} className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" loading="lazy" />
-        ) : (
-          <GiftPlaceholder tone={toneOf(gift.id)} />
-        )}
+        <GiftVisual name={gift.name} image_url={gift.image_url} items={gift.items} tone={toneOf(gift.id)} />
 
         <AnimatePresence>
           {/* Cadeau commun avec déjà des participants : emballé à moitié, toujours ouvert aux autres */}

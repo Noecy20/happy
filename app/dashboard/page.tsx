@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  BookHeart, CalendarHeart, Copy, KeyRound, Lock, UserRound, MessageCircle, Pencil, Plus, Trash2, Upload, Clock, Check, Send, Eye, Palette, Phone, Mail,
+  BookHeart, CalendarHeart, Copy, ImagePlus, Layers, X, KeyRound, Lock, UserRound, MessageCircle, Pencil, Plus, Trash2, Upload, Clock, Check, Send, Eye, Palette, Phone, Mail,
   PartyPopper, Store, Gift as GiftIcon, Users, CalendarRange, Hourglass,
 } from 'lucide-react';
 import PushButton from '@/components/PushButton';
@@ -17,6 +17,7 @@ import SignOut from '@/components/SignOut';
 import AppShell, { NavItem } from '@/components/AppShell';
 import GiftCard from '@/components/GiftCard';
 import { GiftPlaceholder } from '@/components/Illustrations';
+import GiftVisual, { packItems } from '@/components/GiftVisual';
 import PasswordInput from '@/components/PasswordInput';
 import GuestBook, { GuestCard } from '@/components/GuestBook';
 import { useToast } from '@/components/Toast';
@@ -624,7 +625,8 @@ function GiftForm({ eventId, userId, vendors, gift, onSaved, position }: {
   eventId: string; userId: string; vendors: Vendor[]; gift?: GiftItem; onSaved: () => void; position: number;
 }) {
   const supabase = createClient();
-  const [source, setSource] = useState<'boutique' | 'libre'>(gift ? (gift.product_id ? 'boutique' : 'libre') : vendors.length ? 'boutique' : 'libre');
+  const isPack = packItems(gift?.items).length > 1;
+  const [source, setSource] = useState<'boutique' | 'libre' | 'pack'>(gift ? (isPack ? 'pack' : gift.product_id ? 'boutique' : 'libre') : vendors.length ? 'boutique' : 'libre');
   const [vendorId, setVendorId] = useState<string>(gift?.vendor_id || '');
   const [products, setProducts] = useState<Product[]>([]);
   const [productId, setProductId] = useState<string>(gift?.product_id || '');
@@ -634,6 +636,14 @@ function GiftForm({ eventId, userId, vendors, gift, onSaved, position }: {
     external_contact: gift?.external_contact || '', product_link: gift?.product_link || '', image_url: gift?.image_url || '',
   });
   const [multiple, setMultiple] = useState(!!gift?.multiple);
+  // Pack : 2 ou 3 articles (prix saisis en texte, convertis à l'enregistrement)
+  const [pack, setPack] = useState<{ name: string; price: string; image_url: string }[]>(
+    isPack ? packItems(gift!.items).map((i) => ({ name: i.name, price: i.price ? String(i.price) : '', image_url: i.image_url || '' }))
+      : [{ name: '', price: '', image_url: '' }, { name: '', price: '', image_url: '' }]);
+  const joined = pack.map((i) => i.name.trim()).filter(Boolean).join(' + ');
+  const [packName, setPackName] = useState(isPack && gift!.name !== joined ? gift!.name : '');
+  const packTotal = pack.reduce((a, i) => a + (Number(i.price) || 0), 0);
+  const setPackItem = (i: number, patch: Partial<{ name: string; price: string; image_url: string }>) => setPack((all) => all.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -657,11 +667,28 @@ function GiftForm({ eventId, userId, vendors, gift, onSaved, position }: {
     setF((x) => ({ ...x, image_url: supabase.storage.from('gifts').getPublicUrl(path).data.publicUrl }));
   };
 
+  const uploadPack = async (i: number, file?: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return setErr('Image trop lourde : 5 Mo maximum.');
+    setUploading(true); setErr('');
+    const path = `${userId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+    const { error } = await supabase.storage.from('gifts').upload(path, file);
+    setUploading(false);
+    if (error) return setErr("L'image n'a pas été envoyée : " + error.message);
+    setPackItem(i, { image_url: supabase.storage.from('gifts').getPublicUrl(path).data.publicUrl });
+  };
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
     let payload: any;
-    if (source === 'boutique') {
+    if (source === 'pack') {
+      const items = pack.filter((i) => i.name.trim()).map((i) => ({ name: i.name.trim(), price: i.price ? Number(i.price) : null, image_url: i.image_url || null }));
+      if (items.length < 2) return setErr('Un pack contient au moins 2 articles : donnez un nom à chacun.');
+      payload = { name: packName.trim() || items.map((i) => i.name).join(' + '), price: packTotal || null,
+        image_url: items.find((i) => i.image_url)?.image_url || null, items, description: f.description.trim() || null,
+        vendor_id: null, product_id: null, options: {}, external_contact: f.external_contact.trim() || null, product_link: null };
+    } else if (source === 'boutique') {
       const p = products.find((x) => x.id === productId);
       if (!p) return setErr('Choisissez un article.');
       payload = { name: p.name, price: p.price ?? null, image_url: p.image_url ?? null, vendor_id: p.vendor_id, product_id: p.id, options: choice,
@@ -673,6 +700,7 @@ function GiftForm({ eventId, userId, vendors, gift, onSaved, position }: {
         product_link: f.product_link.trim() || null, image_url: f.image_url || null };
     }
     payload.multiple = multiple;
+    if (source !== 'pack' && gift?.items?.length) payload.items = [];
     setSaving(true);
     const { error } = gift
       ? await supabase.from('gifts').update(payload).eq('id', gift.id)
@@ -684,8 +712,8 @@ function GiftForm({ eventId, userId, vendors, gift, onSaved, position }: {
 
   return (
     <form onSubmit={save} className="space-y-5">
-      <div className="grid grid-cols-2 gap-2 rounded-2xl bg-lilac/60 p-1.5">
-        {[{ k: 'boutique', l: 'Article d’une boutique', i: Store }, { k: 'libre', l: 'Autre cadeau', i: GiftIcon }].map((t) => (
+      <div className="grid grid-cols-3 gap-1.5 rounded-2xl bg-lilac/60 p-1.5">
+        {[{ k: 'boutique', l: 'En boutique', i: Store }, { k: 'libre', l: 'Autre cadeau', i: GiftIcon }, { k: 'pack', l: 'Pack', i: Layers }].map((t) => (
           <button key={t.k} type="button" onClick={() => setSource(t.k as any)}
             className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition ${source === t.k ? 'bg-white shadow-popsm' : 'text-ink/80 hover:bg-white/60'}`}>
             <t.i size={16} />{t.l}
@@ -738,6 +766,40 @@ function GiftForm({ eventId, userId, vendors, gift, onSaved, position }: {
             </div>
           ))}
           <div><label className="label" htmlFor="gd2">Précisions (facultatif)</label><input id="gd2" className="input" value={f.description} onChange={set('description')} /></div>
+        </>
+      ) : source === 'pack' ? (
+        <>
+          <p className="text-sm text-ink/65">Réunissez 2 ou 3 articles en un seul cadeau. Vos proches réservent le pack entier.</p>
+          {pack.filter((i) => i.name.trim()).length > 1 && (
+            <div className="relative aspect-[16/9] overflow-hidden rounded-2xl">
+              <GiftVisual name={packName || joined} items={pack.map((i) => ({ ...i, price: Number(i.price) || null }))} />
+            </div>
+          )}
+          <div className="space-y-2.5">
+            {pack.map((it, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-xl border border-ink/15 bg-white p-2.5">
+                <label className="relative grid h-16 w-16 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-lg bg-lilac text-ink/45 hover:text-ink" title="Photo de l’article">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {it.image_url ? <img src={it.image_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus size={20} />}
+                  <input type="file" accept="image/*" className="sr-only" onChange={(e) => uploadPack(i, e.target.files?.[0])} />
+                </label>
+                <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[1fr_130px]">
+                  <input className="input py-2" placeholder={`Article ${i + 1}, ex. ${['Parfum', 'Montre', 'Bouquet de fleurs'][i]}`} value={it.name} onChange={(e) => setPackItem(i, { name: e.target.value })} aria-label={`Nom de l’article ${i + 1}`} />
+                  <input className="input py-2" type="number" min="0" placeholder="Prix (FCFA)" value={it.price} onChange={(e) => setPackItem(i, { price: e.target.value })} aria-label={`Prix de l’article ${i + 1}`} />
+                </div>
+                {pack.length > 2 && (
+                  <button type="button" onClick={() => setPack(pack.filter((_, j) => j !== i))} aria-label="Retirer cet article" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-ink/50 hover:bg-candy/10 hover:text-candy"><X size={16} /></button>
+                )}
+              </div>
+            ))}
+            {pack.length < 3 && (
+              <button type="button" onClick={() => setPack([...pack, { name: '', price: '', image_url: '' }])} className="btn-ghost w-full border-dashed"><Plus size={16} />Ajouter un 3e article</button>
+            )}
+          </div>
+          <p className="flex items-baseline justify-between border-t border-ink/10 pt-3 text-sm"><span className="text-ink/65">Total du pack</span><strong className="text-base">{formatPrice(packTotal)}</strong></p>
+          <div><label className="label" htmlFor="pkn">Nom du pack (facultatif)</label><input id="pkn" className="input" placeholder={joined || 'Parfum + Montre'} value={packName} onChange={(e) => setPackName(e.target.value)} /></div>
+          <div><label className="label" htmlFor="pkc">Où l’acheter (contact du vendeur)</label><input id="pkc" className="input" placeholder="Nom, téléphone, adresse" value={f.external_contact} onChange={set('external_contact')} /></div>
+          <div><label className="label" htmlFor="pkd">Détails (facultatif)</label><textarea id="pkd" rows={2} className="input" placeholder="Tailles, couleurs, à livrer ensemble…" value={f.description} onChange={set('description')} /></div>
         </>
       ) : (
         <>

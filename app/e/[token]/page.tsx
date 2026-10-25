@@ -13,6 +13,7 @@ import Logo from '@/components/Logo';
 import Countdown from '@/components/Countdown';
 import Modal from '@/components/Modal';
 import WrappedCard, { GiftItem } from '@/components/WrappedCard';
+import GiftVisual, { packItems } from '@/components/GiftVisual';
 import { useToast } from '@/components/Toast';
 import { burst } from '@/components/confetti';
 import { formatDate, formatPrice, readableOn } from '@/lib/utils';
@@ -232,15 +233,26 @@ function ClaimForm({ token, gift, celebrant, onDone, onError }: {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="flex items-center gap-4 rounded-2xl bg-paper p-3">
-        {gift.image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={gift.image_url} alt="" className="h-16 w-16 rounded-xl border border-ink/10 object-cover" />
+        {(gift.image_url || packItems(gift.items).length > 1) && (
+          <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-ink/10">
+            <GiftVisual name={gift.name} image_url={gift.image_url} items={gift.items} labels={false} badge={false} />
+          </span>
         )}
         <div>
           <p className="font-bold">{gift.name}</p>
           <p className="text-sm text-ink/65">{formatPrice(gift.price)}{gift.vendor ? ` · ${gift.vendor.name}` : ''}</p>
         </div>
       </div>
+      {packItems(gift.items).length > 1 && (
+        <div>
+          <p className="text-sm font-bold">Ce pack contient</p>
+          <ul className="mt-1.5 divide-y divide-ink/10 rounded-xl border border-ink/10 text-sm">
+            {packItems(gift.items).map((it, i) => (
+              <li key={i} className="flex justify-between gap-3 px-3 py-2"><span>{it.name}</span>{it.price ? <span className="font-semibold text-ink/70">{formatPrice(it.price)}</span> : null}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="text-sm text-ink/70">
         {gift.vendor
           ? 'Vos coordonnées sont transmises à la boutique pour préparer la commande. Le paiement se fait directement avec elle.'
