@@ -55,6 +55,13 @@ h1 { font-weight: 800; letter-spacing: -0.035em; }
   .livre-print .livre-sheet:last-child { break-after: auto; }
 }
 
+/* Carrousel de miniatures du thème (invitation) */
+@keyframes defile { to { transform: translateX(-50%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="defile"] { animation: none !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }

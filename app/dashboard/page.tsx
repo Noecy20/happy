@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  BookHeart, CalendarHeart, Copy, ImagePlus, Layers, X, KeyRound, Lock, UserRound, MessageCircle, Pencil, Plus, Trash2, Upload, Clock, Check, Send, Eye, Palette, Phone, Mail,
+  BookHeart, CalendarHeart, Copy, MailOpen, ImagePlus, Layers, X, KeyRound, Lock, UserRound, MessageCircle, Pencil, Plus, Trash2, Upload, Clock, Check, Send, Eye, Palette, Phone, Mail,
   PartyPopper, Store, Gift as GiftIcon, Users, CalendarRange, Hourglass,
 } from 'lucide-react';
 import PushButton from '@/components/PushButton';
@@ -16,6 +16,7 @@ import { GiftItem } from '@/components/WrappedCard';
 import SignOut from '@/components/SignOut';
 import AppShell, { NavItem } from '@/components/AppShell';
 import GiftCard from '@/components/GiftCard';
+import InvitationEditor from '@/components/celebrant/InvitationEditor';
 import { GiftPlaceholder } from '@/components/Illustrations';
 import GiftVisual, { packItems } from '@/components/GiftVisual';
 import PasswordInput from '@/components/PasswordInput';
@@ -114,7 +115,10 @@ export default function Dashboard() {
   const nav: NavItem[] = [
     { key: 'accueil', label: 'Mon anniversaire', icon: CalendarHeart },
     { key: 'liste', label: 'Ma liste', icon: GiftIcon },
-    ...(event?.has_party ? [{ key: 'invites', label: 'Invités', icon: Users, badge: rsvps.length || undefined }] : []),
+    ...(event?.has_party ? [
+      { key: 'invitation', label: 'Invitation', icon: MailOpen },
+      { key: 'invites', label: 'Invités', icon: Users, badge: rsvps.filter((r) => r.attending !== 'non' && r.guests > 1 && !r.host_reply).length || undefined },
+    ] : []),
     { key: 'livre', label: 'Livre d’or', icon: BookHeart },
     { key: 'compte', label: 'Mon compte', icon: UserRound },
   ];
@@ -248,7 +252,12 @@ export default function Dashboard() {
         ))}
 
         {/* INVITÉS */}
-        {section === 'invites' && event?.has_party && <RsvpPanel rsvps={rsvps} />}
+        {section === 'invitation' && event?.has_party && (
+          <InvitationEditor event={event as any} userId={profile.id} inviteUrl={event.published ? `${siteUrl()}/e/${(event as any).invite_token}` : undefined}
+            onSaved={(ev) => setEvent(ev)} onToast={(m, ok) => toast.show(m, ok ? 'ok' : 'err')} />
+        )}
+
+        {section === 'invites' && event?.has_party && <RsvpPanel rsvps={rsvps} onReload={load} onToast={(m, ok) => toast.show(m, ok ? 'ok' : 'err')} />}
 
         {/* LIVRE D'OR */}
         {section === 'livre' && (!event ? needEvent : (
@@ -962,7 +971,61 @@ function ShareLink({ label, url, text, onCopy }: { label: string; url: string; t
   );
 }
 
-function RsvpPanel({ rsvps }: { rsvps: any[] }) {
+const REPLY_IDEAS = [
+  'Une seule personne par invitation, merci de ta compréhension.',
+  'Avec plaisir, vous êtes les bienvenus !',
+  'Peux-tu me donner les prénoms de tes accompagnants ?',
+];
+
+/** Une réponse d'invité ; la personne fêtée peut lui répondre (surtout s'il vient accompagné). */
+function RsvpRow({ r, onReload, onToast }: { r: any; onReload: () => void; onToast: (m: string, ok: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(r.host_reply || '');
+  const [busy, setBusy] = useState(false);
+  const many = r.attending !== 'non' && r.guests > 1;
+  const send = async () => {
+    setBusy(true);
+    const { error } = await createClient().rpc('reply_rsvp', { p_rsvp: r.id, p_reply: text });
+    setBusy(false);
+    if (error) return onToast(error.message.includes('reply_rsvp') ? 'La base n’est pas à jour : exécutez supabase/7-invitation-programme.sql.' : error.message, false);
+    onToast('Réponse enregistrée : elle s’affiche sur la page de l’invité', true); setOpen(false); onReload();
+  };
+  return (
+    <li className="px-4 py-3 text-sm">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="font-bold">{r.name}</span>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${r.attending === 'oui' ? 'bg-mint/15 text-mint' : r.attending === 'non' ? 'bg-ink/5 text-ink/60' : 'bg-mango/20 text-[#8a5a0f]'}`}>
+          {r.attending === 'oui' ? `Oui, ${r.guests} pers.` : r.attending === 'non' ? 'Non' : `Peut-être, ${r.guests} pers.`}
+        </span>
+        {r.phone && <a href={`https://wa.me/${r.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="text-ink/60 underline">{r.phone}</a>}
+        {r.attending !== 'non' && !open && (
+          <button onClick={() => setOpen(true)} className={`ml-auto text-sm font-bold hover:underline ${many && !r.host_reply ? 'text-candy' : 'text-plum'}`}>
+            {r.host_reply ? 'Modifier ma réponse' : many ? `Vient à ${r.guests} : répondre` : 'Répondre'}
+          </button>
+        )}
+      </div>
+      {r.message && <p className="mt-1 text-ink/65">« {r.message} »</p>}
+      {r.host_reply && !open && <p className="mt-2 rounded-lg bg-lilac px-3 py-2 text-ink/80"><span className="font-bold">Votre réponse : </span>{r.host_reply}</p>}
+      {open && (
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {REPLY_IDEAS.map((t) => <button key={t} type="button" onClick={() => setText(t)} className="rounded-full border border-ink/15 px-3 py-1 text-xs font-semibold hover:border-ink/40">{t}</button>)}
+          </div>
+          <textarea rows={2} className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder={`Votre réponse à ${r.name}`} aria-label={`Votre réponse à ${r.name}`} />
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={send} disabled={busy || !text.trim()} className="btn-primary py-2 text-sm">{busy ? 'Envoi…' : 'Enregistrer la réponse'}</button>
+            {r.phone && text.trim() && (
+              <a href={`https://wa.me/${r.phone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer" className="btn bg-[#25D366] py-2 text-sm text-white"><MessageCircle size={15} />Envoyer aussi sur WhatsApp</a>
+            )}
+            <button onClick={() => setOpen(false)} className="px-2 py-2 text-sm font-semibold text-ink/60">Annuler</button>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function RsvpPanel({ rsvps, onReload, onToast }: { rsvps: any[]; onReload: () => void; onToast: (m: string, ok: boolean) => void }) {
   const yes = rsvps.filter((r) => r.attending === 'oui');
   const maybe = rsvps.filter((r) => r.attending === 'peut-etre');
   const no = rsvps.filter((r) => r.attending === 'non');
@@ -975,16 +1038,7 @@ function RsvpPanel({ rsvps }: { rsvps: any[] }) {
         <p className="panel mt-6 p-8 text-center text-ink/60">Personne n’a encore répondu. Partagez le lien des invités depuis « Mon anniversaire ».</p>
       ) : (
         <ul className="panel mt-6 divide-y divide-ink/10">
-          {rsvps.map((r) => (
-            <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
-              <span className="font-bold">{r.name}</span>
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${r.attending === 'oui' ? 'bg-mint/15 text-mint' : r.attending === 'non' ? 'bg-ink/5 text-ink/60' : 'bg-mango/20 text-[#8a5a0f]'}`}>
-                {r.attending === 'oui' ? `Oui, ${r.guests} pers.` : r.attending === 'non' ? 'Non' : 'Peut-être'}
-              </span>
-              {r.phone && <a href={`https://wa.me/${r.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="text-ink/60 underline">{r.phone}</a>}
-              {r.message && <span className="w-full text-ink/65">« {r.message} »</span>}
-            </li>
-          ))}
+          {rsvps.map((r) => <RsvpRow key={r.id} r={r} onReload={onReload} onToast={onToast} />)}
         </ul>
       )}
     </section>

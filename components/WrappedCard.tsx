@@ -29,7 +29,7 @@ export default function WrappedCard({ gift, onClaim, mine = false, footer, close
   const half = !!gift.multiple && (gift.participants || 0) > 0;
   const wrapped = gift.claimed && !gift.multiple;
   return (
-    <motion.article layout className="group relative flex flex-col overflow-hidden rounded-[24px] border border-ink/[0.07] bg-white shadow-popsm transition-shadow hover:shadow-pop">
+    <motion.article layout className="group relative flex flex-col overflow-hidden rounded-[18px] border border-ink/[0.08] bg-white shadow-popsm transition-shadow hover:shadow-pop">
       <div className="relative aspect-[4/3] overflow-hidden bg-lilac">
         <GiftVisual name={gift.name} image_url={gift.image_url} items={gift.items} tone={toneOf(gift.id)} />
 
@@ -66,13 +66,13 @@ export default function WrappedCard({ gift, onClaim, mine = false, footer, close
         </AnimatePresence>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 p-5">
+      <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">
         <div>
-          <h3 className="font-display text-[22px] leading-tight">{gift.name}</h3>
-          {gift.price ? <p className="mt-1 text-sm font-bold text-ink/75">{formatPrice(gift.price)}</p> : null}
+          <h3 className="font-display text-base leading-tight sm:text-lg">{gift.name}</h3>
+          {gift.price ? <p className="mt-0.5 text-sm font-bold text-ink/75">{formatPrice(gift.price)}</p> : null}
         </div>
-        {gift.description && <p className="text-sm leading-relaxed text-ink/60">{gift.description}</p>}
-        <div className="flex flex-wrap gap-2 text-xs font-semibold text-ink/60">
+        {gift.description && <p className="line-clamp-2 text-sm leading-snug text-ink/60">{gift.description}</p>}
+        <div className="flex flex-wrap gap-1.5 text-xs font-semibold text-ink/60">
           {vendorName && (vendorId
             ? <Link href={`/boutiques/${vendorId}`} className="inline-flex items-center gap-1.5 rounded-full bg-lilac/70 px-2.5 py-1 hover:bg-lilac hover:text-candy"><Store size={13} />{vendorName}</Link>
             : <span className="inline-flex items-center gap-1.5 rounded-full bg-lilac/70 px-2.5 py-1"><Store size={13} />{vendorName}</span>)}
@@ -85,9 +85,9 @@ export default function WrappedCard({ gift, onClaim, mine = false, footer, close
             </a>
           )}
         </div>
-        <div className="mt-auto space-y-2 pt-1">
+        <div className="mt-auto space-y-1.5 pt-1">
           {onClaim && !gift.claimed && !closed && gift.stock !== 0 && !(gift.multiple && mine) && (
-            <button onClick={() => onClaim(gift)} className="btn w-full py-3 shadow-popsm hover:-translate-y-px" style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}>
+            <button onClick={() => onClaim(gift)} className="btn w-full py-2.5 text-sm" style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}>
               Je m’en charge
             </button>
           )}

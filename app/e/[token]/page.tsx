@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Lock, PartyPopper, Copy, Package, CalendarHeart, Gift, BookHeart, ImagePlus, X } from 'lucide-react';
 import Cake from '@/components/Cake';
-import Invitation from '@/components/Invitation';
+import Invitation, { themeTones } from '@/components/Invitation';
+import Programme, { ProgramStep } from '@/components/Programme';
 import OrderTracking from '@/components/OrderTracking';
 import PushButton from '@/components/PushButton';
 import { createClient } from '@/lib/supabase/client';
@@ -21,19 +22,22 @@ import { formatDate, formatPrice, readableOn } from '@/lib/utils';
 type Data = {
   status: 'ok' | 'expired' | 'not_found'; closed?: boolean; celebrant_name?: string;
   event?: { id: string; title: string; celebrant_name: string; birthday_date: string; age: number; message?: string; dress_code?: string; theme_color?: string;
-    has_party: boolean; party_date?: string; party_time?: string; party_place?: string; party_details?: string };
+    has_party: boolean; party_date?: string; party_time?: string; party_place?: string; party_details?: string;
+    theme_images?: string[]; palette?: string[]; program?: ProgramStep[]; reminders?: string[] };
   gifts?: GiftItem[];
 };
 
 const STORE_KEY = 'happy-mes-cadeaux';
-const readMine = (): Record<string, string> => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch { return {}; } };
+type Mine = string | { code: string; claim?: string; phone?: string };
+const readMine = (): Record<string, Mine> => { try { return JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch { return {}; } };
+const codeOf = (m?: Mine) => (typeof m === 'string' ? m : m?.code || '');
 
 export default function PublicList() {
   const params = useParams<{ token: string }>();
   const supabase = createClient();
   const toast = useToast();
   const [data, setData] = useState<Data | null>(null);
-  const [mine, setMine] = useState<Record<string, string>>({});
+  const [mine, setMine] = useState<Record<string, Mine>>({});
   const [selected, setSelected] = useState<GiftItem | null>(null);
   const [success, setSuccess] = useState<{ code: string; gift: GiftItem } | null>(null);
   const [tracking, setTracking] = useState<string | null>(null);
@@ -41,6 +45,18 @@ export default function PublicList() {
   const load = async () => {
     const { data } = await supabase.rpc('get_public_event', { p_token: params.token });
     setData(data || { status: 'not_found' });
+  };
+
+  // Annuler sa participation à un cadeau commun (vérifiée avec le téléphone donné à la réservation)
+  const cancel = async (g: GiftItem) => {
+    const m = mine[g.id];
+    if (typeof m !== 'object' || !m.claim) return;
+    if (!confirm(`Annuler votre participation à « ${g.name} » ?`)) return;
+    const { error } = await supabase.rpc('cancel_participation', { p_token: params.token, p_claim: m.claim, p_phone: m.phone || '' });
+    if (error) return toast.show(error.message, 'err');
+    const next = { ...readMine() }; delete next[g.id];
+    localStorage.setItem(STORE_KEY, JSON.stringify(next)); setMine(next);
+    toast.show('Participation annulée'); load();
   };
 
   useEffect(() => {
@@ -81,7 +97,7 @@ export default function PublicList() {
         <header className="relative mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
           <Logo light />
           {Object.keys(mine).length > 0 && (
-            <button onClick={() => setTracking(Object.values(mine)[0])} className="btn border-white/20 bg-white/10 py-2 text-sm text-white hover:bg-white/20"><Package size={16} />Ma commande</button>
+            <button onClick={() => setTracking(codeOf(Object.values(mine)[0]))} className="btn border-white/20 bg-white/10 py-2 text-sm text-white hover:bg-white/20"><Package size={16} />Ma commande</button>
           )}
         </header>
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-6 md:grid-cols-[1.3fr_1fr] md:pb-20 md:pt-10">
@@ -119,12 +135,15 @@ export default function PublicList() {
       </section>
 
       {ev.has_party && (
-        <section id="invitation" className="scroll-mt-6 bg-lilac/50 px-5 py-16">
-          <h2 className="mb-8 text-center text-3xl sm:text-4xl">Vous êtes invité(e) à la fête</h2>
-          <Invitation name={ev.celebrant_name} age={ev.age} color={accent} date={ev.party_date || ev.birthday_date}
-            time={ev.party_time} place={ev.party_place} details={ev.party_details} dressCode={ev.dress_code} />
-          <Rsvp token={params.token} color={accent} onDone={(m, ok) => toast.show(m, ok ? 'ok' : 'err')} />
-        </section>
+        <>
+          <section id="invitation" className="scroll-mt-6 px-5 py-16" style={{ background: themeTones(accent).paper }}>
+            <Invitation title={ev.title} name={ev.celebrant_name} age={ev.age} color={accent} date={ev.party_date || ev.birthday_date}
+              time={ev.party_time} place={ev.party_place} details={ev.party_details} dressCode={ev.dress_code}
+              images={ev.theme_images} palette={ev.palette} />
+            <Rsvp token={params.token} color={accent} onDone={(m, ok) => toast.show(m, ok ? 'ok' : 'err')} />
+          </section>
+          <Programme steps={ev.program || []} color={accent} palette={ev.palette} reminders={ev.reminders} />
+        </>
       )}
 
       <main id="cadeaux" className="mx-auto max-w-6xl scroll-mt-6 px-5 py-12">
@@ -137,12 +156,17 @@ export default function PublicList() {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
           {gifts.map((g) => (
             <WrappedCard
               key={g.id} gift={g} mine={!!mine[g.id]} closed={data.closed} onClaim={setSelected}
               footer={mine[g.id] ? (
-                <button onClick={() => setTracking(mine[g.id])} className="btn-ghost w-full py-2 text-sm"><Package size={15} />Suivre ma commande</button>
+                <>
+                  <button onClick={() => setTracking(codeOf(mine[g.id]))} className="btn-ghost w-full py-2 text-sm"><Package size={15} />Suivre</button>
+                  {g.multiple && typeof mine[g.id] === 'object' && (mine[g.id] as any).claim && !data.closed && (
+                    <button onClick={() => cancel(g)} className="w-full py-1 text-xs font-semibold text-ink/55 hover:text-candy hover:underline">Annuler ma participation</button>
+                  )}
+                </>
               ) : null}
             />
           ))}
@@ -154,8 +178,8 @@ export default function PublicList() {
           <ClaimForm
             token={params.token} gift={selected} celebrant={ev.celebrant_name}
             onError={(m) => { toast.show(m, 'err'); load(); }}
-            onDone={(code) => {
-              const m = { ...readMine(), [selected.id]: code };
+            onDone={(code, claim, phone) => {
+              const m = { ...readMine(), [selected.id]: selected.multiple && claim ? { code, claim, phone } : code };
               localStorage.setItem(STORE_KEY, JSON.stringify(m)); setMine(m);
               setSuccess({ code, gift: selected }); setSelected(null); load();
               burst([accent, '#F2A93B', '#ffffff']);
@@ -194,7 +218,7 @@ export default function PublicList() {
 }
 
 function ClaimForm({ token, gift, celebrant, onDone, onError }: {
-  token: string; gift: GiftItem; celebrant: string; onDone: (code: string) => void; onError: (m: string) => void;
+  token: string; gift: GiftItem; celebrant: string; onDone: (code: string, claim?: string, phone?: string) => void; onError: (m: string) => void;
 }) {
   const [f, setF] = useState({ name: '', phone: '', email: '', address: '', date: '', message: '' });
   const [wrap, setWrap] = useState(false);
@@ -227,7 +251,7 @@ function ClaimForm({ token, gift, celebrant, onDone, onError }: {
     });
     setLoading(false);
     if (error) return onError(error.message);
-    onDone(data.tracking_code);
+    onDone(data.tracking_code, data.claim_id, f.phone);
   };
 
   return (
@@ -306,43 +330,63 @@ function ClaimForm({ token, gift, celebrant, onDone, onError }: {
 
 function Rsvp({ token, color, onDone }: { token: string; color: string; onDone: (m: string, ok: boolean) => void }) {
   const key = `happy-rsvp-${token}`;
-  const [sent, setSent] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ label: string; id?: string } | null>(null);
+  const [reply, setReply] = useState<string | null>(null);
   const [f, setF] = useState({ name: '', phone: '', attending: 'oui', guests: 1, message: '' });
   const [loading, setLoading] = useState(false);
-  useEffect(() => { setSent(localStorage.getItem(key)); }, [key]);
+  useEffect(() => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    let v: { label: string; id?: string };
+    try { v = JSON.parse(raw); } catch { v = { label: raw }; } // ancienne version : simple texte
+    setSent(v);
+    if (v.id) createClient().rpc('get_my_rsvp', { p_token: token, p_rsvp: v.id }).then(({ data }) => setReply(data?.host_reply || null));
+  }, [key, token]);
 
-  if (sent) return <p className="mx-auto mt-6 max-w-[520px] rounded-2xl bg-white p-4 text-center text-sm font-semibold shadow-popsm">Merci, votre réponse a été envoyée : {sent}.</p>;
+  if (sent)
+    return (
+      <div className="mx-auto mt-6 max-w-[640px] space-y-3">
+        <p className="rounded-2xl bg-white p-4 text-center text-sm font-semibold shadow-popsm">Merci, votre réponse a été envoyée : {sent.label}.</p>
+        {reply && (
+          <div className="rounded-2xl bg-white p-4 shadow-popsm">
+            <p className="text-xs font-semibold text-ink/55">Réponse de la personne fêtée</p>
+            <p className="mt-1 font-book text-lg italic">« {reply} »</p>
+          </div>
+        )}
+      </div>
+    );
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await createClient().rpc('rsvp', { p_token: token, p_name: f.name, p_phone: f.phone || null, p_attending: f.attending, p_guests: f.guests, p_message: f.message || null });
+    const { data, error } = await createClient().rpc('rsvp', { p_token: token, p_name: f.name, p_phone: f.phone || null, p_attending: f.attending, p_guests: f.guests, p_message: f.message || null });
     setLoading(false);
     if (error) return onDone(error.message, false);
-    const label = f.attending === 'oui' ? 'je serai là' : f.attending === 'non' ? 'je ne pourrai pas venir' : 'peut-être';
-    localStorage.setItem(key, label); setSent(label); onDone('Réponse envoyée', true);
+    const label = f.attending === 'oui' ? (f.guests > 1 ? `je serai là, à ${f.guests}` : 'je serai là') : f.attending === 'non' ? 'je ne pourrai pas venir' : 'peut-être';
+    const v = { label, id: typeof data === 'string' ? data : undefined };
+    localStorage.setItem(key, JSON.stringify(v)); setSent(v); onDone('Réponse envoyée', true);
   };
 
   return (
-    <form onSubmit={submit} className="mx-auto mt-6 max-w-[520px] space-y-4 rounded-[28px] bg-white p-6 shadow-popsm sm:p-8">
-      <h3 className="text-center text-2xl">Serez-vous là ?</h3>
+    <form onSubmit={submit} className="mx-auto mt-6 max-w-[640px] space-y-4 rounded-[24px] bg-white p-6 shadow-popsm sm:p-8">
+      <h3 className="text-center font-book text-3xl font-semibold">Serez-vous là ?</h3>
       <div className="grid grid-cols-3 gap-2">
         {[{ k: 'oui', l: 'Oui' }, { k: 'peut-etre', l: 'Peut-être' }, { k: 'non', l: 'Non' }].map((o) => (
           <button key={o.k} type="button" onClick={() => setF({ ...f, attending: o.k })}
-            className={`rounded-2xl border py-3 text-sm font-bold transition ${f.attending === o.k ? 'border-transparent text-white' : 'border-ink/10 bg-white'}`}
-            style={f.attending === o.k ? { background: color === '#F7F5F2' ? '#14112B' : color } : undefined}>{o.l}</button>
+            className={`rounded-xl border py-3 text-sm font-bold transition ${f.attending === o.k ? 'border-transparent text-white' : 'border-ink/10 bg-white'}`}
+            style={f.attending === o.k ? { background: color === '#F7F5F2' ? '#14112B' : color, color: readableOn(color === '#F7F5F2' ? '#14112B' : color) } : undefined}>{o.l}</button>
         ))}
       </div>
-      <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
-        <input required className="input" placeholder="Votre nom" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+      <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+        <input required className="input" placeholder="Votre nom" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} aria-label="Votre nom" />
         {f.attending !== 'non' && (
           <select className="input" value={f.guests} onChange={(e) => setF({ ...f, guests: Number(e.target.value) })} aria-label="Nombre de personnes">
-            {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n} pers.</option>)}
+            {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n === 1 ? 'Seul(e)' : `${n} personnes`}</option>)}
           </select>
         )}
       </div>
-      <input className="input" type="tel" placeholder="Téléphone (facultatif)" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-      <input className="input" placeholder="Un petit mot (facultatif)" value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} />
+      <input className="input" type="tel" placeholder="Téléphone (pour recevoir une réponse sur WhatsApp)" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} aria-label="Téléphone" />
+      <input className="input" placeholder="Un petit mot (facultatif)" value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} aria-label="Un petit mot" />
       <button disabled={loading} className="btn w-full py-3" style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}>{loading ? 'Envoi…' : 'Envoyer ma réponse'}</button>
     </form>
   );
